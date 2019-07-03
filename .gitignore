@@ -1,3 +1,5 @@
 .ipynb_checkpoints
 *.tfrecords
 *.gz
+.idea
+__pycache__
