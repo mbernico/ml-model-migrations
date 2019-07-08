@@ -2,22 +2,19 @@ import os
 import argparse
 import tensorflow as tf
 from tensorflow.contrib.training.python.training import hparam
+import logging
 
 import model
 
-import logging
-
 
 def get_args():
-    """Argument parser
+    """Command Line Argument parser.
 
         Returns:
             Dictionary of arguments.
     """
     parser = argparse.ArgumentParser()
 
-    # Hyperparameters sent by the client are passed as command-line arguments
-    # to the script.
     parser.add_argument(
         '--steps',
         type=int,
@@ -56,6 +53,12 @@ def get_args():
 
 
 def train_and_evaluate(hparams):
+    """Trains, evaluates, and serializes the MNIST model defined in model.py
+
+    Args:
+      hparams: (tensorflow.contrib.training.python.training.hparam) A container
+      class that holds parameters and hyperparameters for model training.
+    """
     # Define running config.
     run_config = tf.estimator.RunConfig(save_checkpoints_steps=500)
 
@@ -89,8 +92,8 @@ def train_and_evaluate(hparams):
 
 
 if __name__ == '__main__':
+    """Training task entry point.
+    """
     args = get_args()
     logging.getLogger("tensorflow").setLevel(args.verbosity)
-
-    hparams = hparam.HParams(**args.__dict__)
-    train_and_evaluate(hparams)
+    train_and_evaluate(hparam.HParams(**args.__dict__))

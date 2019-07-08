@@ -1,5 +1,3 @@
-import numpy as np
-
 import tensorflow as tf
 from tensorflow.python.keras.layers import Dense
 from tensorflow.python.keras.layers import Flatten
@@ -7,21 +5,29 @@ from tensorflow.python.keras.layers import Conv2D
 from tensorflow.python.keras.layers import MaxPool2D
 from tensorflow.python.keras.layers import Input
 from tensorflow.python.keras.layers import Dropout
-from tensorflow.python.keras.models import Sequential
 from tensorflow.python.keras.models import Model
 from tensorflow.python.keras.optimizers import Adam
 from tensorflow.python.keras.estimator import model_to_estimator
 
 
 def keras_estimator(model_dir, config, learning_rate):
-    """Creates a Keras Sequential model with layers.
+    """Creates a CNN using Keras.
+
+    This function creates a CNN using TensorFlow's Keras API. The Keras model is
+    converted to a Tensorflow Estimator so that it can be consumed by
+    SageMaker's sagemaker.tensorflow.TensorFlow API.
+
     Args:
-      model_dir: (str) file path where training files will be written.
+      model_dir: (str) File path where training files will be written.
       config: (tf.estimator.RunConfig) Configuration options to save model.
-      learning_rate: (int) Learning rate.
+      learning_rate: (float) Gradient Descent learning rate.
+
     Returns:
       A keras.Model
     """
+
+    # Input layer name must match the feature dictionary feeding the network
+    # defined in the input_fn() / _parse_fun()
     inputs = Input(shape=(28,28,1), name='image_input')
     x = Conv2D(
         filters=32,
@@ -48,12 +54,23 @@ def keras_estimator(model_dir, config, learning_rate):
         loss='sparse_categorical_crossentropy',
         metrics=['accuracy'])
 
+    # Converts the Keras model to a TensorFlow Estimator
     estimator = model_to_estimator(
         keras_model=model, model_dir=model_dir, config=config)
     return estimator
 
 
 def input_fn(tfrecords_path, batch_size, mode):
+    """Reads TFRecords, parses them, and returns a dataset.
+
+    Args:
+      tfrecords_path: (str) Path to TFRecords.
+      batch_size: (int) Batch size.
+      mode: (tf.estimator.ModeKeys) Estimator mode (PREDICT, EVAL, TRAIN).
+
+    Returns:
+        tf.data.Dataset
+    """
     dataset = tf.data.TFRecordDataset(tfrecords_path).map(_parse_fn)
 
     if mode == tf.estimator.ModeKeys.TRAIN:
@@ -64,6 +81,21 @@ def input_fn(tfrecords_path, batch_size, mode):
 
 
 def _parse_fn(example):
+    """Parses a single MNIST TFRecord.
+
+    This function parses a single MNIST TFRecord and returns a label and
+    feature set.  It is intended to be called by the tf.data.Dataset
+    transformation chain defined in input_fun().
+
+    Args:
+      example: Single row from a TFRecord.
+
+    Returns:
+        {'image_input': image}: {'image_input':tf.tensor} A feature dictionary
+        with a single key 'image_input' that maps to a height x width x depth
+        input tensor.
+        label: (tf.int32) A scalar label.
+    """
 
     feature_description = {
         'height': tf.io.FixedLenFeature([], tf.int64, default_value=0),
@@ -84,5 +116,14 @@ def _parse_fn(example):
 
 
 def serving_input_fn():
-    feature_spec = {'image_input': tf.placeholder(shape=[None,28,28,1], dtype=tf.float32)}
-    return tf.estimator.export.ServingInputReceiver(feature_spec,feature_spec)
+    """Serving Input Function for tf.Estimator inference.
+
+    Allows the tf.Estimator to be serialized and provides a tensor placeholder
+    for inference.
+
+    Returns:
+      tf.estimator.export.ServingInputReceiver
+    """
+    feature_spec = {'image_input': tf.placeholder(shape=[None, 28, 28, 1],
+                                                  dtype=tf.float32)}
+    return tf.estimator.export.ServingInputReceiver(feature_spec, feature_spec)
