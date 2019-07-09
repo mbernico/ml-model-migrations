@@ -3,7 +3,6 @@ import argparse
 import tensorflow as tf
 from tensorflow.contrib.training.python.training import hparam
 import logging
-
 import model
 
 
