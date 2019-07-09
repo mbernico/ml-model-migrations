@@ -64,7 +64,10 @@ def get_args():
         '--verbosity',
         choices=['DEBUG', 'ERROR', 'FATAL', 'INFO', 'WARN'],
         default='INFO')
-    return parser.parse_args()
+    args = parser.parse_args()
+    args.train = args.train + "mnist_train.tfrecords"
+    args.test = args.test + "mnist_test.tfrecords"
+    return args
 
 
 def train_and_evaluate(hparams):
@@ -110,5 +113,6 @@ if __name__ == '__main__':
     """Training task entry point.
     """
     args = get_args()
+    print(args)
     logging.getLogger("tensorflow").setLevel(args.verbosity)
     train_and_evaluate(hparam.HParams(**args.__dict__))
