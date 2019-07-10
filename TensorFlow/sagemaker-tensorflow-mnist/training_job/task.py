@@ -58,7 +58,7 @@ def get_args():
     parser.add_argument(
         '--test',
         type=str,
-        default=os.environ.get('SM_CHANNEL_TEST'),
+        default=os.environ.get('SM_CHANNEL_EVAL'),
         help='The location of the testing data.')
     parser.add_argument(
         '--verbosity',
