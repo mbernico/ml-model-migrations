@@ -65,8 +65,6 @@ def get_args():
         choices=['DEBUG', 'ERROR', 'FATAL', 'INFO', 'WARN'],
         default='INFO')
     args = parser.parse_args()
-    args.train = args.train + "mnist_train.tfrecords"
-    args.test = args.test + "mnist_test.tfrecords"
     return args
 
 

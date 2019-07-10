@@ -24,6 +24,7 @@ from tensorflow.python.keras.layers import Dropout
 from tensorflow.python.keras.models import Model
 from tensorflow.python.keras.optimizers import Adam
 from tensorflow.python.keras.estimator import model_to_estimator
+import glob
 
 
 def keras_estimator(model_dir, config, learning_rate):
@@ -76,18 +77,26 @@ def keras_estimator(model_dir, config, learning_rate):
     return estimator
 
 
-def input_fn(tfrecords_path, batch_size, mode):
+def input_fn(tfrecords_dir, batch_size, mode):
     """Reads TFRecords, parses them, and returns a dataset.
 
     Args:
-      tfrecords_path: (str) Path to TFRecords.
+      tfrecords_dir: (str) Directory containing TFRecords.
       batch_size: (int) Batch size.
       mode: (tf.estimator.ModeKeys) Estimator mode (PREDICT, EVAL, TRAIN).
 
     Returns:
         tf.data.Dataset
     """
-    dataset = tf.data.TFRecordDataset(tfrecords_path).map(_parse_fn)
+    try:
+        tfrecords_path = tfrecords_dir + "*.tfrecords"
+        tfrecords_file_queue = glob.glob(tfrecords_path)
+
+    except:
+        raise ValueError("tfrecords_dir should contain a valid path but "
+                         "instead contained: {}".format(tfrecords_path))
+
+    dataset = tf.data.TFRecordDataset(tfrecords_file_queue).map(_parse_fn)
 
     if mode == tf.estimator.ModeKeys.TRAIN:
         dataset = dataset.shuffle(1000).repeat().batch(batch_size)
