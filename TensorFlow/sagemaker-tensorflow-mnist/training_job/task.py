@@ -58,7 +58,7 @@ def get_args():
     parser.add_argument(
         '--test',
         type=str,
-        default=os.environ.get('SM_CHANNEL_TEST'),
+        default=os.environ.get('SM_CHANNEL_EVAL'),
         help='The location of the testing data.')
     parser.add_argument(
         '--verbosity',
@@ -68,36 +68,35 @@ def get_args():
     return args
 
 
-def train_and_evaluate(hparams):
+def train_and_evaluate(args):
     """Trains, evaluates, and serializes the MNIST model defined in model.py
 
     Args:
-      hparams: (tensorflow.contrib.training.python.training.hparam) A container
-      class that holds parameters and hyperparameters for model training.
+      args: (Parsed arguments obj) An object containing all parsed arguments.
     """
     # Define running config.
     run_config = tf.estimator.RunConfig(save_checkpoints_steps=500)
 
     # Create estimator.
     estimator = model.keras_estimator(
-        model_dir=hparams.model_dir,
+        model_dir=args.model_dir,
         config=run_config,
-        learning_rate=hparams.learning_rate)
+        learning_rate=args.learning_rate)
 
     # Create TrainSpec.
     train_spec = tf.estimator.TrainSpec(
         input_fn=lambda: model.input_fn(
-            hparams.train,
-            batch_size=hparams.batch_size,
+            args.train,
+            batch_size=args.batch_size,
             mode=tf.estimator.ModeKeys.TRAIN),
-        max_steps=hparams.steps)
+        max_steps=args.steps)
 
     # Create EvalSpec.
     exporter = tf.estimator.LatestExporter('exporter', model.serving_input_fn)
     eval_spec = tf.estimator.EvalSpec(
         input_fn=lambda: model.input_fn(
-            hparams.test,
-            batch_size=hparams.batch_size,
+            args.test,
+            batch_size=args.batch_size,
             mode=tf.estimator.ModeKeys.EVAL),
         steps=None,
         exporters=exporter,
@@ -111,6 +110,5 @@ if __name__ == '__main__':
     """Training task entry point.
     """
     args = get_args()
-    print(args)
     logging.getLogger("tensorflow").setLevel(args.verbosity)
-    train_and_evaluate(hparam.HParams(**args.__dict__))
+    train_and_evaluate(args)

@@ -92,7 +92,7 @@ def input_fn(tfrecords_dir, batch_size, mode):
         tfrecords_path = tfrecords_dir + "*.tfrecords"
         tfrecords_file_queue = glob.glob(tfrecords_path)
 
-    except:
+    except TypeError:
         raise ValueError("tfrecords_dir should contain a valid path but "
                          "instead contained: {}".format(tfrecords_path))
 
