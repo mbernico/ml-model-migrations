@@ -84,6 +84,7 @@ def input_fn(tfrecords_dir, batch_size, mode):
       tfrecords_dir: (str) Directory containing TFRecords.
       batch_size: (int) Batch size.
       mode: (tf.estimator.ModeKeys) Estimator mode (PREDICT, EVAL, TRAIN).
+      input_mode: (str) pipe = PipeModeDataset or records = copied TFRecords
 
     Returns:
         tf.data.Dataset
@@ -94,7 +95,7 @@ def input_fn(tfrecords_dir, batch_size, mode):
 
     except TypeError:
         raise ValueError("tfrecords_dir should contain a valid path but "
-                         "instead contained: {}".format(tfrecords_path))
+                             "instead contained: {}".format(tfrecords_path))
 
     dataset = tf.data.TFRecordDataset(tfrecords_file_queue).map(_parse_fn)
 

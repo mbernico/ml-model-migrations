@@ -45,6 +45,11 @@ def get_args():
         type=float,
         default=0.1,
         help='The learning rate that the optimizer will use.')
+    parser.add_argument(
+        '--input_mode',
+        type=str,
+        default='records',
+        help='records = Read from TFRecords, pipe = Read from PipeModeDataset.')
     # Input data and model directories.
     parser.add_argument(
         '--model_dir',
@@ -88,7 +93,8 @@ def train_and_evaluate(args):
         input_fn=lambda: model.input_fn(
             args.train,
             batch_size=args.batch_size,
-            mode=tf.estimator.ModeKeys.TRAIN),
+            mode=tf.estimator.ModeKeys.TRAIN,
+            input_mode=args.input_mode),
         max_steps=args.steps)
 
     # Create EvalSpec.
@@ -97,7 +103,8 @@ def train_and_evaluate(args):
         input_fn=lambda: model.input_fn(
             args.test,
             batch_size=args.batch_size,
-            mode=tf.estimator.ModeKeys.EVAL),
+            mode=tf.estimator.ModeKeys.EVAL,
+            input_mode=args.input_mode),
         steps=None,
         exporters=exporter,
         start_delay_secs=10,
