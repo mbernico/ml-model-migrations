@@ -17,7 +17,6 @@
 import os
 import argparse
 import tensorflow as tf
-from tensorflow.contrib.training.python.training import hparam
 import logging
 import model
 
@@ -45,15 +44,11 @@ def get_args():
         type=float,
         default=0.1,
         help='The learning rate that the optimizer will use.')
-    parser.add_argument(
-        '--input_mode',
-        type=str,
-        default='records',
-        help='records = Read from TFRecords, pipe = Read from PipeModeDataset.')
     # Input data and model directories.
     parser.add_argument(
         '--model_dir',
         type=str,
+        default=os.environ.get('SM_MODEL_DIR'),
         help="Storage location for the estimator.")
     parser.add_argument(
         '--train',
@@ -80,7 +75,7 @@ def train_and_evaluate(args):
       args: (Parsed arguments obj) An object containing all parsed arguments.
     """
     # Define running config.
-    run_config = tf.estimator.RunConfig(save_checkpoints_steps=500)
+    run_config = tf.estimator.RunConfig(save_checkpoints_steps=6000)
 
     # Create estimator.
     estimator = model.keras_estimator(
@@ -93,22 +88,26 @@ def train_and_evaluate(args):
         input_fn=lambda: model.input_fn(
             args.train,
             batch_size=args.batch_size,
-            mode=tf.estimator.ModeKeys.TRAIN,
-            input_mode=args.input_mode),
+            mode=tf.estimator.ModeKeys.TRAIN),
         max_steps=args.steps)
 
     # Create EvalSpec.
-    exporter = tf.estimator.LatestExporter('exporter', model.serving_input_fn)
+    if os.path.exists('/opt/ml/model'):  # exists if running in AWS SM Container
+        container_model_output_dir = '/opt/ml/model'
+    else:
+        container_model_output_dir = 'exporter'
+
+    exporter = tf.estimator.LatestExporter(container_model_output_dir,
+                                           model.serving_input_fn)
     eval_spec = tf.estimator.EvalSpec(
         input_fn=lambda: model.input_fn(
             args.test,
             batch_size=args.batch_size,
-            mode=tf.estimator.ModeKeys.EVAL,
-            input_mode=args.input_mode),
-        steps=None,
+            mode=tf.estimator.ModeKeys.EVAL),
+        steps=600,
         exporters=exporter,
         start_delay_secs=10,
-        throttle_secs=10)
+        throttle_secs=60)
 
     tf.estimator.train_and_evaluate(estimator, train_spec, eval_spec)
 
@@ -117,5 +116,6 @@ if __name__ == '__main__':
     """Training task entry point.
     """
     args = get_args()
+    print(args.model_dir)
     logging.getLogger("tensorflow").setLevel(args.verbosity)
     train_and_evaluate(args)

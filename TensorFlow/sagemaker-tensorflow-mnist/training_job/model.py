@@ -45,21 +45,21 @@ def keras_estimator(model_dir, config, learning_rate):
 
     # Input layer name must match the feature dictionary feeding the network
     # defined in the input_fn() / _parse_fun()
-    inputs = Input(shape=(28,28,1), name='image_input')
+    inputs = Input(shape=(28, 28, 1), name='image_input')
     x = Conv2D(
         filters=32,
-        kernel_size=[5,5],
+        kernel_size=[3, 3],
         padding='same',
         activation=tf.nn.relu)(inputs)
-    x = MaxPool2D(pool_size=(2,2), strides=2)(x)
+    x = MaxPool2D(pool_size=(3, 3), strides=2)(x)
     x = Conv2D(
         filters=64,
-        kernel_size=[5,5],
+        kernel_size=[3, 3],
         padding='same',
         activation=tf.nn.relu)(x)
-    x = MaxPool2D(pool_size=(2,2), strides=2)(x)
+    x = MaxPool2D(pool_size=(2, 2), strides=2)(x)
     x = Flatten()(x)
-    x = Dense(1024, activation=tf.nn.relu)(x)
+    x = Dense(128, activation=tf.nn.relu)(x)
     x = Dropout(rate=0.4)(x)
     output = Dense(10, activation=tf.nn.softmax)(x)
     model = Model(inputs, output)
@@ -90,12 +90,14 @@ def input_fn(tfrecords_dir, batch_size, mode):
         tf.data.Dataset
     """
     try:
-        tfrecords_path = tfrecords_dir + "*.tfrecords"
+        tfrecords_path = tfrecords_dir + "/*.tfrecords"
         tfrecords_file_queue = glob.glob(tfrecords_path)
+        print("TFRecords File Queue Constructed: {}"
+              .format(tfrecords_file_queue))
 
     except TypeError:
         raise ValueError("tfrecords_dir should contain a valid path but "
-                             "instead contained: {}".format(tfrecords_path))
+                         "instead contained: {}".format(tfrecords_path))
 
     dataset = tf.data.TFRecordDataset(tfrecords_file_queue).map(_parse_fn)
 
@@ -132,6 +134,8 @@ def _parse_fn(example):
 
     example = tf.io.parse_single_example(example, feature_description)
     image = tf.decode_raw(example['image_raw'], tf.uint8)
+    image = tf.cast(image, tf.float32)
+    image /= 255
     image = tf.reshape(image,
                        [example['height'],
                         example['width'],

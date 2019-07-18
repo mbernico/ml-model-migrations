@@ -19,3 +19,4 @@ tutorials
 .jupyter/
 .viminfo
 .DS_Store
+**/sagemaker_role.py
