@@ -84,7 +84,6 @@ def input_fn(tfrecords_dir, batch_size, mode):
       tfrecords_dir: (str) Directory containing TFRecords.
       batch_size: (int) Batch size.
       mode: (tf.estimator.ModeKeys) Estimator mode (PREDICT, EVAL, TRAIN).
-      input_mode: (str) pipe = PipeModeDataset or records = copied TFRecords
 
     Returns:
         tf.data.Dataset

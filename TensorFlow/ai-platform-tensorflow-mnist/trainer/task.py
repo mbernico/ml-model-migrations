@@ -18,8 +18,7 @@ import os
 import argparse
 import tensorflow as tf
 import logging
-import model
-
+from . import model
 
 def get_args():
     """Command Line Argument parser.
@@ -42,23 +41,20 @@ def get_args():
     parser.add_argument(
         '--learning_rate',
         type=float,
-        default=0.1,
+        default=0.001,
         help='The learning rate that the optimizer will use.')
     # Input data and model directories.
     parser.add_argument(
-        '--model_dir',
+        '--job_dir',
         type=str,
-        default=os.environ.get('SM_MODEL_DIR'),
         help="Storage location for the estimator.")
     parser.add_argument(
-        '--train',
+        '--train_file',
         type=str,
-        default=os.environ.get('SM_CHANNEL_TRAIN'),
         help='The location of the training data.')
     parser.add_argument(
-        '--test',
+        '--test_file',
         type=str,
-        default=os.environ.get('SM_CHANNEL_EVAL'),
         help='The location of the testing data.')
     parser.add_argument(
         '--verbosity',
@@ -79,14 +75,14 @@ def train_and_evaluate(args):
 
     # Create estimator.
     estimator = model.keras_estimator(
-        model_dir=args.model_dir,
+        model_dir=args.job_dir,
         config=run_config,
         learning_rate=args.learning_rate)
 
     # Create TrainSpec.
     train_spec = tf.estimator.TrainSpec(
         input_fn=lambda: model.input_fn(
-            args.train,
+            args.train_file,
             batch_size=args.batch_size,
             mode=tf.estimator.ModeKeys.TRAIN),
         max_steps=args.steps)
@@ -101,7 +97,7 @@ def train_and_evaluate(args):
                                            model.serving_input_fn)
     eval_spec = tf.estimator.EvalSpec(
         input_fn=lambda: model.input_fn(
-            args.test,
+            args.test_file,
             batch_size=args.batch_size,
             mode=tf.estimator.ModeKeys.EVAL),
         steps=600,
@@ -116,6 +112,5 @@ if __name__ == '__main__':
     """Training task entry point.
     """
     args = get_args()
-    print(args.model_dir)
     logging.getLogger("tensorflow").setLevel(args.verbosity)
     train_and_evaluate(args)

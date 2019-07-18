@@ -69,4 +69,82 @@ Now that you understand how training and inference work on SageMaker, we can sho
     ```
  
 ### Updating your training script to run on Cloud AI Platform
+When you start a SageMaker training job, by default SageMaker will copy your training data
+from the S3 locations you specify to a directory in the training container. Your script finds that directory (typically /opt/ml/train and /opt/ml/eval) by using
+the environment variables SM_CHANNEL_TRAIN and SM_CHANNEL_EVAL. Your script must implement functionality to read that directory and use it for training or eval/test.
+
+When you start a Cloud AI Platform training job, your script must implement the functionality necessary to make the data available to the model. That might mean
+caching it in the container, however for the TensorFlow framework ` tf.data.TFRecordDataset()` is able to consume data directly from a GCS bucket. 
+
+This means the only substantial change required for your training script is changing `input_fn()` to read directly from GCS:
+
+```python
+def input_fn(tfrecords_file, batch_size, mode):
+    """Reads TFRecords, parses them, and returns a dataset.
+
+    Args:
+      tfrecords_file: (str) GCS file containing TFRecords.
+      batch_size: (int) Batch size.
+      mode: (tf.estimator.ModeKeys) Estimator mode (PREDICT, EVAL, TRAIN).
+
+    Returns:
+        tf.data.Dataset
+    """
+
+    dataset = tf.data.TFRecordDataset(tfrecords_file).map(_parse_fn)
+
+    if mode == tf.estimator.ModeKeys.TRAIN:
+        dataset = dataset.shuffle(1000).repeat().batch(batch_size)
+    if mode in (tf.estimator.ModeKeys.EVAL, tf.estimator.ModeKeys.PREDICT):
+        dataset = dataset.batch(batch_size)
+    return dataset
+```
+
+With that change, your script should work on Cloud AI Platform
+
+### Running your training script locally
+
+Your modified training script can be tested locally by using the gcloud ai-platform cli.
+
+```bash
+export TRAIN_DATA=gs://ml-model-migration/mnist_data/train/mnist_train.tfrecords
+export EVAL_DATA=gs://ml-model-migration/mnist_data/test/mnist_test.tfrecords
+export MODEL_DIR=output
+
+gcloud ai-platform local train \
+--module-name trainer.task \
+--package-path trainer \
+-- \
+--train $TRAIN_DATA \
+--test $EVAL_DATA 
+--steps 1000 \ 
+--learning_rate 0.001 \
+--batch_size 100 \
+--verbosity 'INFO' 
+```
+
+### Training your model on GCP Cloud AI Platform
+
+```bash
+export REGION=us-central1
+export JOB_NAME=MNIST_EXAMPLE_$(date +%Y%m%d%H%M%S%s)
+export OUTPUT_PATH=$BUCKET_NAME/$JOB_NAME
+
+gcloud ai-platform jobs submit training $JOB_NAME \
+--stream-logs \
+--runtime-version 1.12 \
+--module-name trainer.task \
+--package-path trainer \
+--python-version 3.5 \
+--region $REGION \
+--scale-tier BASIC_GPU \
+--job-dir $OUTPUT_PATH \
+-- \
+--train $TRAIN_DATA \
+--test $EVAL_DATA \
+--steps 1000 \
+--learning_rate 0.001 \
+--batch_size 100 \
+--verbosity 'INFO'
+```
 

@@ -20,3 +20,4 @@ tutorials
 .viminfo
 .DS_Store
 **/sagemaker_role.py
+**/output/
