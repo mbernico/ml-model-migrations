@@ -35,12 +35,12 @@ def get_args():
         default=10,
         help='The number of steps to train for.')
     parser.add_argument(
-        '--batch_size',
+        '--batch-size',
         type=int,
         default=100,
         help='The batch size to use during training.')
     parser.add_argument(
-        '--learning_rate',
+        '--learning-rate',
         type=float,
         default=0.1,
         help='The learning rate that the optimizer will use.')

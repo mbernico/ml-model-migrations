@@ -68,7 +68,36 @@ Now that you understand how training and inference work on SageMaker, we can sho
     gsutil rsync -r s3://sagemaker-us-east-2-708267171719/sagemaker/ml-model-migration/data/mnist gs://ml-model-migration/mnist_data
     ```
  
-### Updating your training script to run on Cloud AI Platform
+### Updating your training script to run on Cloud AI Platform.
+There are very few changes you will need to make, in order for your AWS SageMaker Script to be runnable on Google Cloud AI Platform. The Key differences are
+1. How the code is called.
+2. How the trained model is exported and checkpointed
+3. How data is fed to the model.
+
+You can read more about each of these below.
+
+### Running your code.
+On Cloud AI Platform your code is expected to be bundled into a module. To bundle your code into a module you may need to:
+1. Include an empty `__init__.py` in the same directory as your `model.py` and `task.py` files.
+2. Adjust relative inputs in your module.
+
+Once you've made these changes, you can test them by calling your code as a module (e.g. `python3 -m trainer.task` ) instead of as a script (e.g. `python3 trainer/task.py`).
+
+### Adjusting how your model is exported and checkpointed.
+On AWS SageMaker your model should be exported into `/opt/ml/model` in the container.  When the training job ends the serialized model will be copied out of the container
+and onto S3 where the `sagemaker.tensorflow` object can find it and hand it off to a serving container for inference.
+
+In addition to serializing your model in `/opt/ml/model` your script is also expected to implement a command line argument `model_dir` that is an S3 location that can
+be used for model checkpoints.
+
+When using Google Cloud AI Platform, your code is expected to implement a command line argument `job_dir` that represents a GCS bucket and path where both exported models
+and checkpoint files can be stored.
+
+1. Accept the command line parameter job_dir in your code.
+1. Export models to the path specified in job_dir.
+1. Model checkpoints should also be saved in job_dir.
+
+#### Data
 When you start a SageMaker training job, by default SageMaker will copy your training data
 from the S3 locations you specify to a directory in the training container. Your script finds that directory (typically /opt/ml/train and /opt/ml/eval) by using
 the environment variables SM_CHANNEL_TRAIN and SM_CHANNEL_EVAL. Your script must implement functionality to read that directory and use it for training or eval/test.
@@ -107,23 +136,26 @@ With that change, your script should work on Cloud AI Platform
 Your modified training script can be tested locally by using the gcloud ai-platform cli.
 
 ```bash
-export TRAIN_DATA=gs://ml-model-migration/mnist_data/train/mnist_train.tfrecords
-export EVAL_DATA=gs://ml-model-migration/mnist_data/test/mnist_test.tfrecords
-export MODEL_DIR=output
+export BUCKET_NAME=gs://<YOUR-BUCKET-NAME>
+export TRAIN_DATA=$BUCKET_NAME/mnist_data/train/mnist_train.tfrecords
+export EVAL_DATA=$BUCKET_NAME/mnist_data/test/mnist_test.tfrecords
+export OUTPUT_PATH=output
 
 gcloud ai-platform local train \
 --module-name trainer.task \
 --package-path trainer \
 -- \
 --train $TRAIN_DATA \
---test $EVAL_DATA 
---steps 1000 \ 
---learning_rate 0.001 \
---batch_size 100 \
---verbosity 'INFO' 
+--test $EVAL_DATA \
+--steps 1000 \
+--learning-rate 0.001 \
+--batch-size 100 \
+--verbosity 'INFO' \
+--job-dir $OUTPUT_PATH
 ```
 
 ### Training your model on GCP Cloud AI Platform
+With the modifications above, you're now ready to train on Google Cloud AI Platform.
 
 ```bash
 export REGION=us-central1
@@ -140,11 +172,42 @@ gcloud ai-platform jobs submit training $JOB_NAME \
 --scale-tier BASIC_GPU \
 --job-dir $OUTPUT_PATH \
 -- \
---train $TRAIN_DATA \
---test $EVAL_DATA \
---steps 1000 \
---learning_rate 0.001 \
---batch_size 100 \
+--train-file $TRAIN_DATA \
+--test-file $EVAL_DATA \
+--steps 12000 \
+--learning-rate 0.001 \
+--batch-size 100 \
 --verbosity 'INFO'
 ```
 
+You can read more about using the [gcloud ai-platform CLI here](https://cloud.google.com/ml-engine/docs/tensorflow/getting-started-training-prediction).
+
+### Inference on GCP
+
+1. Your model should have been exported to $OUTPUT_PATH. List the files in that bucket and find the model you want to serve. They are stored by timestamp, so the 
+largest timestamp is the last checkpoint.
+
+    Once you find the model you want, copy that path and set $MODEL_BINARIES to the model location.
+
+    ```bash
+    gsutil ls -r $OUTPUT_PATH/export
+    export MODEL_BINARIES=gs://ml-model-migration/MNIST_EXAMPLE_201907191128471563553727/export/exporter/1563554211/
+    ```
+1. Define the model in Cloud AI Platform. 
+
+    ```bash
+    export MODEL_NAME=mnist
+    export REGION=us-central1
+    gcloud ai-platform models create $MODEL_NAME --regions=$REGION
+    ```
+    
+1. Finally you will define the model version. Models can contain multiple versions, each version is related to a saved model binary.
+
+    ```bash
+    gcloud ai-platform versions create v1 \
+    --model $MODEL_NAME \
+    --origin $MODEL_BINARIES \
+    --runtime-version 1.12
+    ```
+    
+The model is now available as an endpoint on Cloud AI Platform.

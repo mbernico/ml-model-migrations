@@ -34,26 +34,26 @@ def get_args():
         default=10,
         help='The number of steps to train for.')
     parser.add_argument(
-        '--batch_size',
+        '--batch-size',
         type=int,
         default=100,
         help='The batch size to use during training.')
     parser.add_argument(
-        '--learning_rate',
+        '--learning-rate',
         type=float,
         default=0.001,
         help='The learning rate that the optimizer will use.')
     # Input data and model directories.
     parser.add_argument(
-        '--job_dir',
+        '--job-dir',
         type=str,
         help="Storage location for the estimator.")
     parser.add_argument(
-        '--train_file',
+        '--train-file',
         type=str,
         help='The location of the training data.')
     parser.add_argument(
-        '--test_file',
+        '--test-file',
         type=str,
         help='The location of the testing data.')
     parser.add_argument(
